@@ -1,6 +1,7 @@
 all:
 	gcc simpletun.c -o simpletun
 	gcc client.c -o client
+	gcc server.c -o server
 server:
 	sudo ./simpletun -i tun0 -s -d
 conberkay:

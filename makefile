@@ -4,8 +4,8 @@ all:
 	gcc server.c -o server
 server:
 	sudo ./simpletun -i tun0 -s -d
-conberkay:
-	sudo ./simpletun -i tun0 -c 10.70.190.45 -d
+client:
+	sudo ./simpletun -i tun0 -c $(ip) -d
 tun0server:
 	sudo ip addr add 10.0.4.1/24 dev tun0
 	ifconfig tun0 up

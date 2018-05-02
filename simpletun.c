@@ -80,6 +80,20 @@ int tun_alloc(char *dev, int flags) {
     return err;
   }
 
+  if(ioctl(fd, TUNSETPERSIST, 1) < 0){
+      perror("enabling TUNSETPERSIST");
+      exit(1);
+  }
+
+/* 
+  // DELETE TUN0 interface
+  if(ioctl(tap_fd, TUNSETPERSIST, 0) < 0){
+      perror("disabling TUNSETPERSIST");
+      exit(1);
+  }
+*/
+
+
   strcpy(dev, ifr.ifr_name);
 
   return fd;

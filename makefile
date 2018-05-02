@@ -1,15 +1,19 @@
 all:
 	gcc simpletun.c -o simpletun
-	gcc client.c -o client
-	gcc server.c -o server
+	gcc client.c -o clientWorker
+	gcc server.c -o serverWorker
+
 server:
-	sudo ./server -i tun0 -s -d
+	sudo ./serverWorker -i tun0 -s -d
+
 client:
-	sudo ./client -i tun0 -c $(ip) -d
+	sudo ./clientWorker -i tun0 -c $(ip) -d
+
 tun0server:
 	sudo ip addr add 10.0.4.1/24 dev tun0
 	ifconfig tun0 up
 	route add -net 10.0.5.0 netmask 255.255.255.0 dev tun0
+
 tun0client:
 	sudo ip addr add 10.0.5.1/24 dev tun0
 	sudo ifconfig tun0 up

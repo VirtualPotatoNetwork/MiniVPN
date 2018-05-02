@@ -1,5 +1,6 @@
 all:
 	gcc simpletun.c -o simpletun
+	gcc client.c -o client
 server:
 	sudo ./simpletun -i tun0 -s -d
 conberkay:
@@ -10,5 +11,5 @@ tun0server:
 	route add -net 10.0.5.0 netmask 255.255.255.0 dev tun0
 tun0client:
 	sudo ip addr add 10.0.5.1/24 dev tun0
-	ifconfig tun0 up
-	route add -net 10.0.4.0 netmask 255.255.255.0 dev tun0
+	sudo ifconfig tun0 up
+	sudo route add -net 10.0.4.0 netmask 255.255.255.0 dev tun0

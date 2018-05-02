@@ -3,9 +3,9 @@ all:
 	gcc client.c -o client
 	gcc server.c -o server
 server:
-	sudo ./simpletun -i tun0 -s -d
+	sudo ./server -i tun0 -s -d
 client:
-	sudo ./simpletun -i tun0 -c $(ip) -d
+	sudo ./client -i tun0 -c $(ip) -d
 tun0server:
 	sudo ip addr add 10.0.4.1/24 dev tun0
 	ifconfig tun0 up

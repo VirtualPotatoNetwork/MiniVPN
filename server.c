@@ -251,12 +251,12 @@ int main(int argc, char *argv[]) {
 
     fromlen = sizeof(from);
 
-//    l = recvfrom(s, buf, sizeof(buf), (struct sockaddr *)&from, &fromlen);
-//
-//    if (l < 0) {
-//        my_err("error on initialization");
-//        exit(1);
-//    }
+    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+
+    if (l < 0) {
+        my_err("error on initialization");
+        exit(1);
+    }
 
 
     while (1) {

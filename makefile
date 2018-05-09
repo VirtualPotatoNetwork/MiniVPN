@@ -3,8 +3,11 @@ all:
 	gcc client.c -o clientWorker
 	gcc server.c -o serverWorker
 
+serverSimpletun:
+	sudo ./simpletun -i tun0 -s -d
+
 server:
-	sudo ./serverWorker -i tun0 -s -d
+	sudo ./serverWorker -i tun0 -d
 
 client:
 	sudo ./clientWorker -i tun0 -c $(ip) -d

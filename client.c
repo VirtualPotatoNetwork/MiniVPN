@@ -1,7 +1,3 @@
-//
-// Created by lualala on 02.05.2018.
-//
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -164,7 +160,8 @@ void usage(void) {
     fprintf(stderr, "%s -h\n", progname);
     fprintf(stderr, "\n");
     fprintf(stderr, "-i <ifacename>: Name of interface to use (mandatory)\n");
-    fprintf(stderr, "-c (-c <serverIP>) (mandatory)\n");
+    fprintf(stderr,
+            "-s|-c <serverIP>: run in server mode (-s), or specify server address (-c <serverIP>) (mandatory)\n");
     fprintf(stderr,
             "-p <port>: port to listen on (if run in server mode) or to connect to (in client mode), default 55555\n");
     fprintf(stderr, "-u|-a: use TUN (-u, default) or TAP (-a)\n");
@@ -175,27 +172,29 @@ void usage(void) {
 
 int main(int argc, char *argv[]) {
 
+    struct sockaddr_in sin, sout, destination;
+
+    int fd, s, destination_len, soutlen, l;
+
+    char c, *p;
+    char buf[1500];
+    fd_set fdset;
+
     int tap_fd, option;
     int flags = IFF_TUN;
     char if_name[IFNAMSIZ] = "";
     int header_len = IP_HDR_LEN;
-    int maxfd;
-    uint16_t nread, nwrite, plength;
-//  uint16_t total_len, ethertype;
-    char buffer[BUFSIZE];
-    struct sockaddr_in local, remote;
+
     struct sockaddr_in udp_client;
     char remote_ip[16] = "";
     unsigned short int port = PORT;
-    int sock_fd, net_fd, optval = 1;
-    socklen_t remotelen;
-    int cliserv = -1;    /* must be specified on cmd line */
+
     unsigned long int tap2net = 0, net2tap = 0;
 
     progname = argv[0];
 
     /* Check command line options */
-    while ((option = getopt(argc, argv, "i:sc:p:uahd")) > 0) {
+    while ((option = getopt(argc, argv, "i:c:p:uahd")) > 0) {
         switch (option) {
             case 'd':
                 debug = 1;
@@ -207,7 +206,6 @@ int main(int argc, char *argv[]) {
                 strncpy(if_name, optarg, IFNAMSIZ - 1);
                 break;
             case 'c':
-                cliserv = CLIENT;
                 strncpy(remote_ip, optarg, 15);
                 break;
             case 'p':
@@ -237,10 +235,7 @@ int main(int argc, char *argv[]) {
     if (*if_name == '\0') {
         my_err("Must specify interface name!\n");
         usage();
-    } else if (cliserv < 0) { // cliserv is by default -1, so if user forgets to enter -c functionality,
-        my_err("Must specify client!\n");
-        usage();
-    } else if ((cliserv == CLIENT) && (*remote_ip == '\0')) {
+    } else if (*remote_ip == '\0') {
         my_err("Must specify server address!\n");
         usage();
     }
@@ -253,89 +248,75 @@ int main(int argc, char *argv[]) {
 
     do_debug("Successfully connected to interface %s\n", if_name);
 
-    if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("socket()");
-        exit(1);
-    }
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_ANY);
+    sin.sin_port = htons(PORT);
 
-    /* assign the destination address */
-    memset(&remote, 0, sizeof(remote));
-    remote.sin_family = AF_INET;
-    remote.sin_addr.s_addr = inet_addr(remote_ip);
-    remote.sin_port = htons(port);
+    destination_len = sizeof(destination);
 
-    /* connection request */
-    if (connect(sock_fd, (struct sockaddr *) &remote, sizeof(remote)) < 0) {
-        perror("connect()");
-        exit(1);
-    }
-
-    net_fd = sock_fd;
-    do_debug("CLIENT: Connected to server %s\n", inet_ntoa(remote.sin_addr));
-
-    /* use select() to handle two descriptors at once */
-    maxfd = (tap_fd > net_fd) ? tap_fd : net_fd;
+    destination.sin_family = AF_INET;
+    destination.sin_port = port;
+    inet_aton(remote_ip, &destination.sin_addr);
 
     while (1) {
-        int ret;
-        fd_set rd_set;
+        FD_ZERO(&fdset);
+        FD_SET(tap_fd, &fdset);
+        FD_SET(s, &fdset);
 
-        FD_ZERO(&rd_set);
-        FD_SET(tap_fd, &rd_set);
-        FD_SET(net_fd, &rd_set);
-
-        ret = select(maxfd + 1, &rd_set, NULL, NULL, NULL);
-
-        if (ret < 0 && errno == EINTR) {
-            continue;
-        }
-
-        if (ret < 0) {
-            perror("select()");
+        if (select(tap_fd + s + 1, &fdset, NULL, NULL, NULL) < 0) {
+            my_err("error on select");
             exit(1);
         }
 
-        if (FD_ISSET(tap_fd, &rd_set)) {
-            /* data from tun/tap: just read it and write it to the network */
+        if (FD_ISSET(tap_fd, &fdset)) {
+            // data from tun/tap
+            l = read(tap_fd, buf, sizeof(buf)); // returns number of bytes it read
 
-            nread = cread(tap_fd, buffer, BUFSIZE);
+            if (l < 0) {
+                my_err("error on read tun/tap");
+                exit(1);
+            }
 
             tap2net++;
-            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, nread);
 
-            /* write length + packet */
-            plength = htons(nread);
-            nwrite = sendto(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, sizeof(udp_client));
-            //nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
-            //nwrite = cwrite(net_fd, buffer, nread);
+            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
 
-            do_debug("TAP2NET %lu: Written %d bytes to the network\n", tap2net, nwrite);
-        }
+            l = sendto(s, buf, l, 0, (struct sockaddr *)&destination, destination_len); // returns number of bytes it sent
 
-        if (FD_ISSET(net_fd, &rd_set)) {
-            /* data from the network: read it, and write it to the tun/tap interface.
-             * We need to read the length first, and then the packet */
-
-            /* Read length */
-            int u_size = sizeof(udp_client);
-            nread = recvfrom(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, (unsigned int *)&u_size);
-            //nread = read_n(net_fd, (char *) &plength, sizeof(plength));
-            if (nread == 0) {
-                /* ctrl-c at the other end */
-                break;
+            if (l < 0) {
+                my_err("error on sending to the network");
+                exit(1);
             }
+
+            do_debug("TAP2NET %lu: Written %d bytes to the network\n", tap2net, l);
+
+        }
+        if (FD_ISSET(s, &fdset)) {
+            l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&sout, &soutlen); // returns number of bytes it read
+
+            if (l < 0) {
+                my_err("error on receving from the network");
+                exit(1);
+            }
+
+            do_debug("packet received from %s:[%d]", inet_ntoa(sout.sin_addr), ntohs(sout.sin_port));
 
             net2tap++;
 
-            /* read packet */
-            nread = read_n(net_fd, buffer, ntohs(plength));
-            do_debug("NET2TAP %lu: Read %d bytes from the network\n", net2tap, nread);
+            do_debug("NET2TAP %lu: Read %d bytes from the network\n", net2tap, l);
 
-            /* now buffer[] contains a full packet or frame, write it into the tun/tap interface */
-            nwrite = cwrite(tap_fd, buffer, nread);
-            do_debug("NET2TAP %lu: Written %d bytes to the tap interface\n", net2tap, nwrite);
+            l = cwrite(tap_fd, buf, l); // returns number of bytes it wrote
+
+            if (l < 0) {
+                my_err("error on writing to tun/tap interface");
+                exit(1);
+            }
+
+            do_debug("NET2TAP %lu: Written %d bytes to the tap interface\n", net2tap, l);
         }
     }
+
 
     return (0);
 }

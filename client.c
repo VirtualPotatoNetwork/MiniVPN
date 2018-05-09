@@ -184,6 +184,7 @@ int main(int argc, char *argv[]) {
 //  uint16_t total_len, ethertype;
     char buffer[BUFSIZE];
     struct sockaddr_in local, remote;
+    struct sockaddr_in udp_client;
     char remote_ip[16] = "";
     unsigned short int port = PORT;
     int sock_fd, net_fd, optval = 1;

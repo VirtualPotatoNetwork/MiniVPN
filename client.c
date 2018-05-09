@@ -253,6 +253,11 @@ int main(int argc, char *argv[]) {
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
     sin.sin_port = htons(PORT);
 
+    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+        my_err("error on bind");
+        exit(1);
+    }
+
     destination_len = sizeof(destination);
 
     destination.sin_family = AF_INET;

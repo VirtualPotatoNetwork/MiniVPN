@@ -188,6 +188,8 @@ int main(int argc, char *argv[]) {
     char remote_ip[16] = "";
     unsigned short int port = PORT;
 
+    unsigned long int tap2net = 0, net2tap = 0;
+
     progname = argv[0];
 
     /* Check command line options */
@@ -258,6 +260,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
     while (1) {
         FD_ZERO(&fdset);
@@ -272,15 +275,24 @@ int main(int argc, char *argv[]) {
         if (FD_ISSET(tap_fd, &fdset)) { // data coming from tun/tap
 
             l = read(tap_fd, buf, sizeof(buf));
+
             if (l < 0) {
                 my_err("error on read tun/tap");
                 exit(1);
             }
+
+            tap2net++;
+
+            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
+
             l = sendto(s, buf, l, 0, (struct sockaddr *)&from, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
             }
+
+            do_debug("TAP2NET %lu: Written %d bytes to the network\n", tap2net, l);
+
         }
 
         if (FD_ISSET(s, &fdset)) { // data coming from network

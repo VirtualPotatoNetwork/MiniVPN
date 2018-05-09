@@ -260,6 +260,8 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    printf("here I am\n");
+
     do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
     while (1) {

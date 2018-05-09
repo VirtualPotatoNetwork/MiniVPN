@@ -29,6 +29,8 @@
 int debug;
 char *progname;
 
+char magicWord[] = "selaaam";
+
 /**************************************************************************
  * tun_alloc: allocates or reconnects to a tun/tap device. The caller     *
  *            needs to reserve enough space in *dev.                      *
@@ -263,6 +265,8 @@ int main(int argc, char *argv[]) {
     destination.sin_family = AF_INET;
     destination.sin_port = port;
     inet_aton(remote_ip, &destination.sin_addr);
+
+    l = sendto(s, magicWord, sizeof(magicWord), 0, (struct sockaddr *)&destination, sizeof(destination));
 
     while (1) {
         FD_ZERO(&fdset);

@@ -321,7 +321,7 @@ int main(int argc, char *argv[]) {
 
             /* write length + packet */
             plength = htons(nread);
-            nwrite = sendto(c_udp, buffer, plength, 0, (struct sockaddr *)&net_fd, sizeof(net_fd));
+            nwrite = sendto(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, sizeof(udp_client));
 //            nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
 //            nwrite = cwrite(net_fd, buffer, nread);
 
@@ -333,7 +333,9 @@ int main(int argc, char *argv[]) {
              * We need to read the length first, and then the packet */
 
             /* Read length */
-            nread = read_n(net_fd, (char *) &plength, sizeof(plength));
+            int u_size = sizeof(udp_client);
+            nread = recvfrom(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, (unsigned int *)&u_size);
+            //nread = read_n(net_fd, (char *) &plength, sizeof(plength));
             if (nread == 0) {
                 /* ctrl-c at the other end */
                 break;
@@ -342,7 +344,7 @@ int main(int argc, char *argv[]) {
             net2tap++;
 
             /* read packet */
-            nread = read_n(net_fd, buffer, ntohs(plength));
+            //nread = read_n(net_fd, buffer, ntohs(plength));
             do_debug("NET2TAP %lu: Read %d bytes from the network\n", net2tap, nread);
 
             /* now buffer[] contains a full packet or frame, write it into the tun/tap interface */

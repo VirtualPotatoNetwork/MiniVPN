@@ -304,8 +304,9 @@ int main(int argc, char *argv[]) {
 
             /* write length + packet */
             plength = htons(nread);
-            nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
-            nwrite = cwrite(net_fd, buffer, nread);
+            nwrite = sendto(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, sizeof(udp_client));
+            //nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
+            //nwrite = cwrite(net_fd, buffer, nread);
 
             do_debug("TAP2NET %lu: Written %d bytes to the network\n", tap2net, nwrite);
         }
@@ -315,7 +316,9 @@ int main(int argc, char *argv[]) {
              * We need to read the length first, and then the packet */
 
             /* Read length */
-            nread = read_n(net_fd, (char *) &plength, sizeof(plength));
+            int u_size = sizeof(udp_client);
+            nread = recvfrom(net_fd, buffer, plength, 0, (struct sockaddr *)&udp_client, (unsigned int *)&u_size);
+            //nread = read_n(net_fd, (char *) &plength, sizeof(plength));
             if (nread == 0) {
                 /* ctrl-c at the other end */
                 break;

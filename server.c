@@ -17,8 +17,6 @@
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
-#define CLIENT 0
-#define SERVER 1
 #define PORT 55555
 
 /* some common lengths */
@@ -176,7 +174,7 @@ int main(int argc, char *argv[]) {
     int fd, s, fromlen, soutlen, l;
 
     char c, *p, *ip;
-    char buf[1500];
+    char buf[BUFSIZE];
     fd_set fdset;
 
     int tap_fd, option;
@@ -241,6 +239,8 @@ int main(int argc, char *argv[]) {
 
     do_debug("Successfully connected to interface %s\n", if_name);
 
+    memset((char *) &sin, 0, sizeof(sin));
+
     s = socket(AF_INET, SOCK_DGRAM, 0);
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -252,6 +252,9 @@ int main(int argc, char *argv[]) {
     }
 
     fromlen = sizeof(from);
+
+    for(int i =0; i < 10; i++)
+        printf("before blocking receive\n");
 
     l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
 

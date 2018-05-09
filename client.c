@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
 
     do_debug("Successfully connected to interface %s\n", if_name);
 
-    s = socket(AF_INET, SOCK_DGRAM, 0);
+    s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
     sin.sin_port = htons(PORT);
@@ -263,10 +263,8 @@ int main(int argc, char *argv[]) {
     destination_len = sizeof(destination);
 
     destination.sin_family = AF_INET;
-    destination.sin_port = port;
+    destination.sin_port = htons(PORT);
     inet_aton(remote_ip, &destination.sin_addr);
-
-    l = sendto(s, magicWord, sizeof(magicWord), 0, (struct sockaddr *)&destination, sizeof(destination));
 
     while (1) {
         FD_ZERO(&fdset);

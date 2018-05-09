@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
 
     do_debug("Successfully connected to interface %s\n", if_name);
 
-    if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket()");
         exit(1);
     }

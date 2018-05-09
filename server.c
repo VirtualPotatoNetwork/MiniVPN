@@ -180,9 +180,10 @@ int main(int argc, char *argv[]) {
 //  uint16_t total_len, ethertype;
     char buffer[BUFSIZE];
     struct sockaddr_in local, remote;
+    struct sockaddr_in udp_client;
     char remote_ip[16] = "";
     unsigned short int port = PORT;
-    int sock_fd, net_fd, optval = 1;
+    int sock_fd, net_fd, c_udp, optval = 1;
     socklen_t remotelen;
     int cliserv = -1;    /* must be specified on cmd line */
     unsigned long int tap2net = 0, net2tap = 0;
@@ -243,8 +244,13 @@ int main(int argc, char *argv[]) {
 
     do_debug("Successfully connected to interface %s\n", if_name);
 
-    if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sock_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("socket()");
+        exit(1);
+    }
+
+    if ((c_udp = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        perror("udp socket()");
         exit(1);
     }
 
@@ -265,20 +271,22 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (listen(sock_fd, 5) < 0) {
-        perror("listen()");
-        exit(1);
-    }
+
+
+//    if (listen(sock_fd, 5) < 0) {
+//        perror("listen()");
+//        exit(1);
+//    }
 
     /* wait for connection request */
-    remotelen = sizeof(remote);
-    memset(&remote, 0, remotelen);
-    if ((net_fd = accept(sock_fd, (struct sockaddr *) &remote, &remotelen)) < 0) {
-        perror("accept()");
-        exit(1);
-    }
-
-    do_debug("SERVER: Client connected from %s\n", inet_ntoa(remote.sin_addr));
+//    remotelen = sizeof(remote);
+//    memset(&remote, 0, remotelen);
+//    if ((net_fd = accept(sock_fd, (struct sockaddr *) &remote, &remotelen)) < 0) {
+//        perror("accept()");
+//        exit(1);
+//    }
+//
+//    do_debug("SERVER: Client connected from %s\n", inet_ntoa(remote.sin_addr));
 
 
     /* use select() to handle two descriptors at once */
@@ -313,8 +321,9 @@ int main(int argc, char *argv[]) {
 
             /* write length + packet */
             plength = htons(nread);
-            nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
-            nwrite = cwrite(net_fd, buffer, nread);
+            nwrite = sendto(c_udp, buffer, plength, 0, (struct sockaddr *)&net_fd, sizeof(net_fd));
+//            nwrite = cwrite(net_fd, (char *) &plength, sizeof(plength));
+//            nwrite = cwrite(net_fd, buffer, nread);
 
             do_debug("TAP2NET %lu: Written %d bytes to the network\n", tap2net, nwrite);
         }
@@ -340,6 +349,8 @@ int main(int argc, char *argv[]) {
             nwrite = cwrite(tap_fd, buffer, nread);
             do_debug("NET2TAP %lu: Written %d bytes to the tap interface\n", net2tap, nwrite);
         }
+
+
     }
 
     return (0);

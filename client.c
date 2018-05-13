@@ -17,6 +17,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include "message.h"
 
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */

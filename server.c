@@ -17,6 +17,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include "message.h"
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
@@ -198,6 +199,9 @@ int main(int argc, char *argv[]) {
 
     int fd, s, fromlen, soutlen, l;
 
+    int internal_socket;
+    int external_socket;
+
     char c, *p, *ip;
     char buf[BUFSIZE];
     fd_set fdset;
@@ -208,7 +212,12 @@ int main(int argc, char *argv[]) {
     int header_len = IP_HDR_LEN;
 
     struct sockaddr_in udp_client;
-    char remote_ip[16] = "";
+    char external_ip[16] = "";
+
+    int external_ip_set = 0;
+
+    char internal_ip[16] = "";
+
     unsigned short int port = PORT;
 
     unsigned long int tap2net = 0, net2tap = 0;
@@ -216,8 +225,15 @@ int main(int argc, char *argv[]) {
     progname = argv[0];
 
     /* Check command line options */
-    while ((option = getopt(argc, argv, "i:sc:p:uahd")) > 0) {
+    while ((option = getopt(argc, argv, "i:g:e:p:uahd")) > 0) {
         switch (option) {
+            case 'e': // external gateway ip
+                strncpy(external_ip, optarg, 15);
+                external_ip_set = 1;
+                break;
+            case 'g':
+                strncpy(internal_ip, optarg, 15);
+                break;
             case 'd':
                 debug = 1;
                 break;
@@ -266,10 +282,36 @@ int main(int argc, char *argv[]) {
 
     memset((char *) &sin, 0, sizeof(sin));
 
-    s = socket(AF_INET, SOCK_DGRAM, 0);
+    // this listens network.
+    s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = htonl(INADDR_ANY);
     sin.sin_port = htons(PORT);
+
+    //
+    // this will send to external gateway.
+    external_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    sout.sin_family = AF_INET;
+    sout.sin_port = htons(PORT);
+    inet_aton(external_ip, &sout.sin_addr);
+
+
+//    external_socket = socket(AF_INET, SOCK_STREAM, 0);
+//    sout.sin_family = AF_INET;
+//    sout.sin_addr.s_addr = htonl(remote_ip);
+//    sout.sin_port = htons(PORT);
+//
+//    if (connect(external_socket, (struct sockaddr *)&sout, sizeof(sout)) < 0) {
+//
+//    }
+
+//    if (external_ip_set == 0) {
+//        // bind and listen
+//    } else {
+//        // connect to
+//    }
+
+
 
     if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
         my_err("error on bind");
@@ -278,19 +320,15 @@ int main(int argc, char *argv[]) {
 
     fromlen = sizeof(from);
 
-    for(int i =0; i < 10; i++)
-        printf("before blocking receive\n");
 
-    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
-
-    if (l < 0) {
-        my_err("error on initialization");
-        exit(1);
-    }
-
-    printf("here I am\n");
-
-    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+//    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+//
+//    if (l < 0) {
+//        my_err("error on initialization");
+//        exit(1);
+//    }
+//
+//    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
     while (1) {
         FD_ZERO(&fdset);
@@ -315,7 +353,7 @@ int main(int argc, char *argv[]) {
 
             do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
 
-            l = sendto(s, buf, l, 0, (struct sockaddr *)&from, fromlen);
+            l = sendto(s, buf, l, 0, (struct sockaddr *)&sout, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);

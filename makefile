@@ -4,13 +4,13 @@ all:
 	gcc server.c -o serverWorker -lssl -lcrypto
 
 serverSimpletun:
-	sudo ./simpletun -i tun0 -s -d
+	sudo ./simpletun -i tun0 -g $(ip) -d
 
 clientSimpletun:
 	sudo ./simpletun -i tun0 -c $(ip) -d
 
 server:
-	sudo ./serverWorker -i tun0 -d
+	sudo ./serverWorker -i tun0 -e $(ip) -d
 
 client:
 	sudo ./clientWorker -i tun0 -c $(ip) -d

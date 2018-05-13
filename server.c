@@ -14,6 +14,9 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
@@ -26,6 +29,9 @@
 
 int debug;
 char *progname;
+
+SSL_CTX *sslctx;
+SSL *cSSL;
 
 /**************************************************************************
  * tun_alloc: allocates or reconnects to a tun/tap device. The caller     *
@@ -147,6 +153,25 @@ void my_err(char *msg, ...) {
     va_start(argp, msg);
     vfprintf(stderr, msg, argp);
     va_end(argp);
+}
+
+void InitializeSSL()
+{
+    SSL_load_error_strings();
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+}
+
+void DestroySSL()
+{
+    ERR_free_strings();
+    EVP_cleanup();
+}
+
+void ShutdownSSL()
+{
+    SSL_shutdown(cSSL);
+    SSL_free(cSSL);
 }
 
 /**************************************************************************

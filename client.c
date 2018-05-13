@@ -14,6 +14,10 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
@@ -28,6 +32,9 @@
 
 int debug;
 char *progname;
+
+SSL_CTX *sslctx;
+SSL *cSSL;
 
 char magicWord[] = "selaaam";
 
@@ -172,7 +179,27 @@ void usage(void) {
     exit(1);
 }
 
+void InitializeSSL()
+{
+    SSL_load_error_strings();
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+}
+
+void DestroySSL()
+{
+    ERR_free_strings();
+    EVP_cleanup();
+}
+
+void ShutdownSSL()
+{
+    SSL_shutdown(cSSL);
+    SSL_free(cSSL);
+}
+
 int main(int argc, char *argv[]) {
+    InitializeSSL();
 
     struct sockaddr_in sin, sout, destination;
 
@@ -303,7 +330,7 @@ int main(int argc, char *argv[]) {
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&sout, &soutlen); // returns number of bytes it read
 
             if (l < 0) {
-                my_err("error on receving from the network");
+                my_err("error on receiving from the network");
                 exit(1);
             }
 

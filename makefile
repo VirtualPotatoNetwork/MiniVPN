@@ -1,7 +1,7 @@
 all:
 	gcc simpletun.c -o simpletun
-	gcc client.c -o clientWorker
-	gcc server.c -o serverWorker
+	gcc client.c -o clientWorker -lssl -lcrypto
+	gcc server.c -o serverWorker -lssl -lcrypto
 
 serverSimpletun:
 	sudo ./simpletun -i tun0 -s -d

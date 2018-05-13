@@ -1,8 +1,16 @@
-
+//for subnet 10.10.10.0
+//gw internal interface ip 10.10.10.2
 sudo route add -net 10.10.9.0 gw 10.10.10.2 netmask 255.255.255.0 dev enp0s3
 
-
 ------------VBOX-------------
+//run this on pc terminal NOT VM!!!
 vboxmanage dhcpserver add --netname testnet --ip 10.10.10.1 --netmask 255.255.255.0 --lowerip 10.10.10.2 --upperip 10.10.10.20 --enable
 
-https://www.youtube.com/watch?v=lhOY-KilEeE
+##################################################################################
+//for subnet 10.10.9.0
+//gw internal interface ip 10.10.9.2
+sudo route add -net 10.10.10.0 gw 10.10.9.2 netmask 255.255.255.0 dev enp0s3
+
+------------VBOX-------------
+//run this on pc terminal NOT VM!!!
+vboxmanage dhcpserver add --netname testnet --ip 10.10.9.1 --netmask 255.255.255.0 --lowerip 10.10.9.2 --upperip 10.10.9.20 --enable

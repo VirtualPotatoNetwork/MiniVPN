@@ -1,0 +1,8 @@
+
+sudo route add -net 10.10.9.0 gw 10.10.10.2 netmask 255.255.255.0 dev enp0s3
+
+
+------------VBOX-------------
+vboxmanage dhcpserver add --netname testnet --ip 10.10.10.1 --netmask 255.255.255.0 --lowerip 10.10.10.2 --upperip 10.10.10.20 --enable
+
+https://www.youtube.com/watch?v=lhOY-KilEeE

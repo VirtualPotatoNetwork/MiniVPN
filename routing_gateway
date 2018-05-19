@@ -2,12 +2,12 @@
 //tun0 10.0.4.1
 //pc ip 10.70.189.241
 
-sudo route add -net 10.10.9.0 gw 10.0.4.1 netmask 255.255.255.0 dev enp0s3
+sudo route add -net 10.10.9.0 gw 10.0.4.1 netmask 255.255.255.0 dev tun0
 sudo sysctl net.ipv4.ip_forward=1
 
 //for subnet 10.10.9.0
 //tun0 10.0.5.1
 //pc ip 10.70.189.242
 
-sudo route add -net 10.10.10.0 gw 10.0.5.1 netmask 255.255.255.0 dev enp0s3
+sudo route add -net 10.10.10.0 gw 10.0.4.1 netmask 255.255.255.0 dev tun0
 sudo sysctl net.ipv4.ip_forward=1

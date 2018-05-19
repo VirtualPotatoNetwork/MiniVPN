@@ -31,8 +31,15 @@
 int debug;
 char *progname;
 
-SSL_CTX *sslctx;
-SSL *cSSL;
+/**************************************************************************
+ *SSL_create_conn: creates SSL connection and waits for a client to conn. *
+ *                                                                        *
+ **************************************************************************/
+void SSL_create_conn()
+{
+
+}
+
 
 /**************************************************************************
  * tun_alloc: allocates or reconnects to a tun/tap device. The caller     *
@@ -156,20 +163,262 @@ void my_err(char *msg, ...) {
     va_end(argp);
 }
 
-void InitializeSSL() {
+void init_openssl()
+{
     SSL_load_error_strings();
-    SSL_library_init();
-    OpenSSL_add_all_algorithms();
+    OpenSSL_add_ssl_algorithms();
 }
 
-void DestroySSL() {
-    ERR_free_strings();
+void cleanup_openssl()
+{
     EVP_cleanup();
 }
 
-void ShutdownSSL() {
-    SSL_shutdown(cSSL);
-    SSL_free(cSSL);
+int create_socket(int port)
+{
+    int s;
+    struct sockaddr_in addr;
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) {
+        perror("Unable to create socket");
+        exit(EXIT_FAILURE);
+    }
+
+    if (bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("Unable to bind");
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(s, 1) < 0) {
+        perror("Unable to listen");
+        exit(EXIT_FAILURE);
+    }
+
+    return s;
+}
+
+SSL_CTX *create_context()
+{
+    const SSL_METHOD *method;
+    SSL_CTX *ctx;
+
+    method = SSLv23_server_method();
+
+    ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        perror("Unable to create SSL context");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    return ctx;
+}
+
+void configure_context(SSL_CTX *ctx)
+{
+    SSL_CTX_set_ecdh_auto(ctx, 1);
+
+    /* Set the key and cert */
+    if (SSL_CTX_use_certificate_file(ctx, "server.pem", SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    if (SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM) <= 0 ) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void SSL_conn_server()
+{
+    int TCP_sock;
+    SSL_CTX *ctx;
+
+    init_openssl();
+    ctx = create_context();
+
+    configure_context(ctx);
+
+    //*******PORT NUMBER*********
+
+    TCP_sock = create_socket(PORT);
+
+    /* Handle connections */
+    while(1) {
+
+        struct sockaddr_in addr;
+        uint len = sizeof(addr);
+        SSL *ssl;
+        int is_connected=0;
+
+        const char reply[] = "test\n";
+
+        int client = accept(TCP_sock, (struct sockaddr*)&addr, &len);
+
+        if (client < 0) {
+            perror("Unable to accept");
+            exit(EXIT_FAILURE);
+        }
+
+        ssl = SSL_new(ctx);
+        SSL_set_fd(ssl, client);
+
+        if (SSL_accept(ssl) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
+        else
+        {
+            char mes[33];
+            char key[33];
+
+            while (1)
+            {
+                SSL_write(ssl, key, strlen(key));
+
+                SSL_read(ssl, mes, 33);
+
+                if(strcmp(key,mes) == 0)
+                {
+                    is_connected=1;
+                    break;
+                }
+            }
+        }
+
+        SSL_free(ssl);
+        close(client);
+
+        if(is_connected == 1)
+        {
+            break;
+        }
+    }
+
+    close(TCP_sock);
+    SSL_CTX_free(ctx);
+    cleanup_openssl();
+}
+
+void SSL_conn_client(char* ext_ip)
+{
+    char ip_port[50];
+    char *port = ":55555";
+    BIO * bio;
+    SSL * ssl;
+    SSL_CTX * ctx;
+    SSL_library_init ();
+    int p;
+
+    char key[33];
+
+    strcat(ip_port,ext_ip);
+    strcat(ip_port,port);
+    printf("%s\n",ip_port);
+
+
+    /* Set up the library */
+
+    ERR_load_BIO_strings();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    /* Set up the SSL context */
+
+    ctx = SSL_CTX_new(SSLv23_client_method());
+
+    /* Load the trust store */
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+    SSL_CTX_set_options(ctx, flags);
+
+    if(ctx==NULL)
+    {
+        printf("null\n");
+    }
+
+    SSL_CTX_load_verify_locations(ctx, "server.crt", NULL);
+
+    BIO* bo = BIO_new( BIO_s_mem() );
+    //BIO_write( bo, mKey,strlen(mKey));
+
+    EVP_PKEY* pkey = 0;
+    PEM_read_bio_PrivateKey( bo, &pkey, 0, 0 );
+
+    BIO_free(bo);
+
+
+    //RSA* rsa = EVP_PKEY_get1_RSA( pkey );
+
+    /*if(! )
+    {
+        printf("Error loading trust store\n");
+        ERR_print_errors_fp(stderr);
+        SSL_CTX_free(ctx);
+        return 0;
+    }*/
+
+    /* Setup the connection */
+
+    bio = BIO_new_ssl_connect(ctx);
+
+    /* Set the SSL_MODE_AUTO_RETRY flag */
+
+    BIO_get_ssl(bio, & ssl);
+    SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+    /* Create and setup the connection */
+
+    BIO_set_conn_hostname(bio, ip_port);
+
+    if(BIO_do_connect(bio) <= 0)
+    {
+        fprintf(stderr, "Error attempting to connect\n");
+        ERR_print_errors_fp(stderr);
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return 0;
+    }
+
+    /* Check the certificate */
+
+    if(SSL_get_verify_result(ssl) != X509_V_OK)
+    {
+        fprintf(stderr, "Certificate verification error: %i\n", SSL_get_verify_result(ssl));
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return 0;
+    }
+
+    /* Send the request */
+/*while(1){
+    BIO_write(bio, request, strlen(request));
+	printf("%s\n",request);}
+BIO_write(bio, request, strlen(request));*/
+    /* Read in the response */
+
+    for(;;)
+    {
+        p = BIO_read(bio, key, 33);
+
+        if(p == 33)
+        {
+            BIO_write(bio, key, strlen(key));
+            printf("%s\n", key);
+            break;
+        }
+    }
+
+    /* Close the connection and free the context */
+
+    BIO_free_all(bio);
+    SSL_CTX_free(ctx);
+    return 0;
 }
 
 /**************************************************************************

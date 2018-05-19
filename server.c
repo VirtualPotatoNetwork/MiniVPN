@@ -605,7 +605,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    fromlen = sizeof(from);
+    fromlen = sizeof(sout);
 
     char plaintext[1024];
     char cipher[1024];
@@ -656,14 +656,18 @@ int main(int argc, char *argv[]) {
             memset(plaintext,'\0',1024);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
             do_debug("packet received from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+            printf("%d\n",l);
             char hmac_out[33];
             memset(hmac_out,'\0',33);
-            strncpy(hmac_out,plaintext+l-33,33);
-            plaintext[l-33]='\0';
+            strncpy(hmac_out,buf+l-32,32);
+            printf("%s\n",buf);
+            printf("%s\n",hmac_out);
+            printf("%d\n",strlen(buf));
+            buf[l-32]='\0';
             char temp_out[33];
             int temp_out_len=33;
             memset(temp_out,'\0',33);
-            myhmac_sha256(key,strlen(key),plaintext,strlen(plaintext),temp_out,&temp_out_len);
+            myhmac_sha256(key,strlen(key),buf,strlen(buf),temp_out,&temp_out_len);
 
             if(strcmp(hmac_out,temp_out) == 0)
             {
@@ -675,7 +679,7 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            decrypt(buf, l,key,iv,plaintext);
+            decrypt(buf, l-32,key,iv,plaintext);
             printf("%s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");
@@ -685,7 +689,13 @@ int main(int argc, char *argv[]) {
             do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
 
-            l = cwrite(tap_fd2, plaintext, l);
+            l = cwrite(tap_fd2, plaintext, l-32);
+//            packet received from 10.70.196.177:55555Writing data: Invalid argument
+//            makefile:13: recipe for target 'server' failed
+//            make: *** [server] Error
+            //gercek paketlerle denemedik
+            //wrap olmadığından dolayı tapta patlıyor
+
 
             if (l < 0) {
                 my_err("error on writing to tun/tap interface");

@@ -18,6 +18,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include "message.h"
+#include "encr_dec.h"
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
@@ -31,6 +32,7 @@
 int debug;
 char *progname;
 char key[33] = "01234567890123456789012345678901";
+char *iv[17] = "*123456789012345";
 
 /**************************************************************************
  *SSL_create_conn: creates SSL connection and waits for a client to conn. *
@@ -276,18 +278,21 @@ void SSL_conn_server()
         }
         else
         {
+            char mes[49];
+            strcat(mes,key);
+            strcat(mes,iv);
+            mes[48]='\0';
             while (1)
             {
-                char mes[33];
-                SSL_write(ssl, key, strlen(key));
+                char reply[49];
+                SSL_write(ssl, mes, strlen(mes));
 
-                SSL_read(ssl, mes, 32);
-                mes[32]='\0';
+                SSL_read(ssl, reply, 48);
+                reply[48]='\0';
 //                printf("%s\n",mes);
 //                printf("%d\n",strlen(mes));
 //                printf("%d\n",strlen(key));
-
-                if(strcmp(key,mes) == 0)
+                if(strcmp(reply,mes) == 0)
                 {
                     is_connected=1;
                     break;
@@ -307,7 +312,7 @@ void SSL_conn_server()
     close(TCP_sock);
     SSL_CTX_free(ctx);
     cleanup_openssl();
-//    printf("*************\n");
+    printf("Key exchange is done\n");
 }
 
 void SSL_conn_client(char* ext_ip)
@@ -405,16 +410,20 @@ void SSL_conn_client(char* ext_ip)
 	printf("%s\n",request);}
 BIO_write(bio, request, strlen(request));*/
     /* Read in the response */
-
+    char temp[49];
     for(;;)
     {
-        p = BIO_read(bio, key, 33);
+        p = BIO_read(bio, temp, 49);
 
         if(p > 0)
         {
-            BIO_write(bio, key, p);
+            BIO_write(bio, temp, p);
+            strncpy(key,temp,32);
             key[32] = '\0';
             printf("%s\n", key);
+            strncpy(iv,temp+32,16);
+            iv[16]='\0';
+            printf("%s\n", iv);
             break;
         }
     }
@@ -612,6 +621,8 @@ int main(int argc, char *argv[]) {
         if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
 
             l = read(tap_fd1, buf, sizeof(buf));
+
+            //encrypt(buf, sizeof(buf),key, sizeof(key))
 
             if (l < 0) {
                 my_err("error on read tun/tap");

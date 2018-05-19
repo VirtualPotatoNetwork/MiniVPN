@@ -156,21 +156,18 @@ void my_err(char *msg, ...) {
     va_end(argp);
 }
 
-void InitializeSSL()
-{
+void InitializeSSL() {
     SSL_load_error_strings();
     SSL_library_init();
     OpenSSL_add_all_algorithms();
 }
 
-void DestroySSL()
-{
+void DestroySSL() {
     ERR_free_strings();
     EVP_cleanup();
 }
 
-void ShutdownSSL()
-{
+void ShutdownSSL() {
     SSL_shutdown(cSSL);
     SSL_free(cSSL);
 }
@@ -324,7 +321,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         my_err("error on bind");
         exit(1);
     }
@@ -346,7 +343,7 @@ int main(int argc, char *argv[]) {
         FD_SET(tap_fd1, &fdset);
         FD_SET(s, &fdset);
 
-        if (select(tap_fd1+ s + 1, &fdset, NULL, NULL, NULL) < 0) {
+        if (select(tap_fd1 + s + 1, &fdset, NULL, NULL, NULL) < 0) {
             my_err("error on select");
             exit(1);
         }
@@ -364,7 +361,7 @@ int main(int argc, char *argv[]) {
 
             do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
 
-            l = sendto(s, buf, l, 0, (struct sockaddr *)&sout, fromlen);
+            l = sendto(s, buf, l, 0, (struct sockaddr *) &sout, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -376,7 +373,7 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(s, &fdset)) { // data coming from network
 
-            l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+            l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
 
             if (l < 0) {
                 my_err("error on receving from the network");

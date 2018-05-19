@@ -30,6 +30,7 @@
 
 int debug;
 char *progname;
+char key[33] = "01234567890123456789012345678901";
 
 /**************************************************************************
  *SSL_create_conn: creates SSL connection and waits for a client to conn. *
@@ -275,9 +276,6 @@ void SSL_conn_server()
         }
         else
         {
-
-            char key[33]="01234567890123456789012345678901";
-
             while (1)
             {
                 char mes[33];
@@ -412,9 +410,10 @@ BIO_write(bio, request, strlen(request));*/
     {
         p = BIO_read(bio, key, 33);
 
-        if(p == 33)
+        if(p > 0)
         {
-            BIO_write(bio, key, strlen(key));
+            BIO_write(bio, key, p);
+            key[32] = '\0';
             printf("%s\n", key);
             break;
         }
@@ -424,6 +423,7 @@ BIO_write(bio, request, strlen(request));*/
 
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
+    printf("****client is out****\n");
 }
 
 /**************************************************************************

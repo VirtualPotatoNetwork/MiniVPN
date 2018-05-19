@@ -585,16 +585,6 @@ int main(int argc, char *argv[]) {
 //        // connect to
 //    }
 
-
-
-    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
-        my_err("error on bind\n");
-        exit(1);
-    }
-
-    fromlen = sizeof(from);
-
-
 //    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
 //
 //    if (l < 0) {
@@ -609,6 +599,14 @@ int main(int argc, char *argv[]) {
     } else {
         SSL_conn_client(external_ip);
     }
+
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
+        my_err("error on bind\n");
+        exit(1);
+    }
+
+    fromlen = sizeof(from);
+
     char plaintext[1024];
     char cipher[1024];
 
@@ -626,7 +624,12 @@ int main(int argc, char *argv[]) {
             memset(cipher,'\0',1024);
             l = read(tap_fd1, buf, sizeof(buf));
 
-            encrypt(buf, l,key, sizeof(key),iv,cipher);
+            encrypt(buf, l,key,iv,cipher);
+            char hmac_out[33];
+            int hmac_len=33;
+            memset(hmac_out,'\0',33);
+            myhmac_sha256(key,strlen(key),cipher,strlen(cipher),hmac_out,&hmac_len);
+            strcat(cipher,hmac_out);
             printf("%s\n",cipher);
 
             if (l < 0) {
@@ -652,7 +655,27 @@ int main(int argc, char *argv[]) {
 
             memset(plaintext,'\0',1024);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
-            decrypt(buf, l,key, sizeof(key),iv,plaintext);
+            do_debug("packet received from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+            char hmac_out[33];
+            memset(hmac_out,'\0',33);
+            strncpy(hmac_out,plaintext+l-33,33);
+            plaintext[l-33]='\0';
+            char temp_out[33];
+            int temp_out_len=33;
+            memset(temp_out,'\0',33);
+            myhmac_sha256(key,strlen(key),plaintext,strlen(plaintext),temp_out,&temp_out_len);
+
+            if(strcmp(hmac_out,temp_out) == 0)
+            {
+                printf("saplaaaaa\n");
+            }
+            else
+            {
+                printf("not equal\n");
+                continue;
+            }
+
+            decrypt(buf, l,key,iv,plaintext);
             printf("%s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");

@@ -265,7 +265,7 @@ void SSL_conn_server()
             perror("Unable to accept");
             exit(EXIT_FAILURE);
         }
-
+//        printf("connected\n");
         ssl = SSL_new(ctx);
         SSL_set_fd(ssl, client);
 
@@ -275,14 +275,19 @@ void SSL_conn_server()
         }
         else
         {
-            char mes[33];
-            char key[33];
+
+            char key[33]="01234567890123456789012345678901";
 
             while (1)
             {
+                char mes[33];
                 SSL_write(ssl, key, strlen(key));
 
-                SSL_read(ssl, mes, 33);
+                SSL_read(ssl, mes, 32);
+                mes[32]='\0';
+//                printf("%s\n",mes);
+//                printf("%d\n",strlen(mes));
+//                printf("%d\n",strlen(key));
 
                 if(strcmp(key,mes) == 0)
                 {
@@ -304,6 +309,7 @@ void SSL_conn_server()
     close(TCP_sock);
     SSL_CTX_free(ctx);
     cleanup_openssl();
+//    printf("*************\n");
 }
 
 void SSL_conn_client(char* ext_ip)
@@ -318,7 +324,7 @@ void SSL_conn_client(char* ext_ip)
 
     char key[33];
 
-    strcat(ip_port,ext_ip);
+    strcpy(ip_port,ext_ip);
     strcat(ip_port,port);
     printf("%s\n",ip_port);
 

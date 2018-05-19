@@ -10,10 +10,10 @@ clientSimpletun:
 	sudo ./simpletun -i tun0 -c $(ip) -d
 
 server:
-	sudo ./serverWorker -i tun0 -n tun1 -s -e $(ip) -d
+	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -s -d
 
 client:
-	sudo ./serverWorker -i tun0 -n tun1 -c -e $(ip) -d
+	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -c  -d
 
 tunserver:
 	sudo ip addr add 10.0.4.1/24 dev tun0

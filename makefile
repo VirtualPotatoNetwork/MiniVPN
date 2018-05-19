@@ -10,15 +10,16 @@ clientSimpletun:
 	sudo ./simpletun -i tun0 -c $(ip) -d
 
 server:
-	sudo ./serverWorker -i tun0 -e $(ip) -d
+	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -d
 
 client:
-	sudo ./clientWorker -i tun0 -c $(ip) -d
+	sudo ./clientWorker -i tun0 -n tun1 -c $(ip) -d
 
-tun0server:
+tunserver:
 	sudo ip addr add 10.0.4.1/24 dev tun0
 	sudo ifconfig tun0 up
-	sudo route add -net 10.0.5.0 netmask 255.255.255.0 dev tun0
+	sudo ip addr add 10.0.5.1/24 dev tun1
+	sudo ifconfig tun1 up
 
 tun0client:
 	sudo ip addr add 10.0.5.1/24 dev tun0

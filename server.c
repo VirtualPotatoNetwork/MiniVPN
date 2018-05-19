@@ -156,21 +156,18 @@ void my_err(char *msg, ...) {
     va_end(argp);
 }
 
-void InitializeSSL()
-{
+void InitializeSSL() {
     SSL_load_error_strings();
     SSL_library_init();
     OpenSSL_add_all_algorithms();
 }
 
-void DestroySSL()
-{
+void DestroySSL() {
     ERR_free_strings();
     EVP_cleanup();
 }
 
-void ShutdownSSL()
-{
+void ShutdownSSL() {
     SSL_shutdown(cSSL);
     SSL_free(cSSL);
 }
@@ -206,9 +203,10 @@ int main(int argc, char *argv[]) {
     char buf[BUFSIZE];
     fd_set fdset;
 
-    int tap_fd, option;
+    int tap_fd1, tap_fd2, option;
     int flags = IFF_TUN;
     char if_name[IFNAMSIZ] = "";
+    char ifn_name[IFNAMSIZ] = "";
     int header_len = IP_HDR_LEN;
 
     struct sockaddr_in udp_client;
@@ -225,7 +223,7 @@ int main(int argc, char *argv[]) {
     progname = argv[0];
 
     /* Check command line options */
-    while ((option = getopt(argc, argv, "i:g:e:p:uahd")) > 0) {
+    while ((option = getopt(argc, argv, "i:n:g:e:p:uahd")) > 0) {
         switch (option) {
             case 'e': // external gateway ip
                 strncpy(external_ip, optarg, 15);
@@ -242,6 +240,9 @@ int main(int argc, char *argv[]) {
                 break;
             case 'i':
                 strncpy(if_name, optarg, IFNAMSIZ - 1);
+                break;
+            case 'n':
+                strncpy(ifn_name, optarg, IFNAMSIZ - 1);
                 break;
             case 'p':
                 port = atoi(optarg);
@@ -273,12 +274,19 @@ int main(int argc, char *argv[]) {
     }
 
     /* initialize tun/tap interface */
-    if ((tap_fd = tun_alloc(if_name, flags | IFF_NO_PI)) < 0) {
+    if ((tap_fd1 = tun_alloc(if_name, flags | IFF_NO_PI)) < 0) {
         my_err("Error connecting to tun/tap interface %s!\n", if_name);
         exit(1);
     }
 
     do_debug("Successfully connected to interface %s\n", if_name);
+
+    if ((tap_fd2 = tun_alloc(ifn_name, flags | IFF_NO_PI)) < 0) {
+        my_err("ERROR connecting to tun/tap interface %s!\n", ifn_name);
+    }
+
+
+    do_debug("Successfully connected to interface %s\n", ifn_name);
 
     memset((char *) &sin, 0, sizeof(sin));
 
@@ -313,7 +321,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
         my_err("error on bind");
         exit(1);
     }
@@ -332,17 +340,17 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         FD_ZERO(&fdset);
-        FD_SET(tap_fd, &fdset);
+        FD_SET(tap_fd1, &fdset);
         FD_SET(s, &fdset);
 
-        if (select(tap_fd + s + 1, &fdset, NULL, NULL, NULL) < 0) {
+        if (select(tap_fd1 + s + 1, &fdset, NULL, NULL, NULL) < 0) {
             my_err("error on select");
             exit(1);
         }
 
-        if (FD_ISSET(tap_fd, &fdset)) { // data coming from tun/tap
+        if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
 
-            l = read(tap_fd, buf, sizeof(buf));
+            l = read(tap_fd1, buf, sizeof(buf));
 
             if (l < 0) {
                 my_err("error on read tun/tap");
@@ -353,7 +361,7 @@ int main(int argc, char *argv[]) {
 
             do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
 
-            l = sendto(s, buf, l, 0, (struct sockaddr *)&sout, fromlen);
+            l = sendto(s, buf, l, 0, (struct sockaddr *) &sout, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -365,7 +373,7 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(s, &fdset)) { // data coming from network
 
-            l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
+            l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
 
             if (l < 0) {
                 my_err("error on receving from the network");
@@ -375,7 +383,7 @@ int main(int argc, char *argv[]) {
             do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
 
-            l = cwrite(tap_fd, buf, l);
+            l = cwrite(tap_fd2, buf, l);
 
             if (l < 0) {
                 my_err("error on writing to tun/tap interface");

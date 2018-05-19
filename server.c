@@ -32,7 +32,7 @@
 int debug;
 char *progname;
 char key[33] = "01234567890123456789012345678901";
-char *iv[17] = "*123456789012345";
+char iv[17] = "*123456789012345";
 
 /**************************************************************************
  *SSL_create_conn: creates SSL connection and waits for a client to conn. *
@@ -279,9 +279,10 @@ void SSL_conn_server()
         else
         {
             char mes[49];
-            strcat(mes,key);
+            strcpy(mes,key);
             strcat(mes,iv);
             mes[48]='\0';
+            printf("%s\n",mes);
             while (1)
             {
                 char reply[49];
@@ -410,9 +411,10 @@ void SSL_conn_client(char* ext_ip)
 	printf("%s\n",request);}
 BIO_write(bio, request, strlen(request));*/
     /* Read in the response */
-    char temp[49];
+
     for(;;)
     {
+        char temp[49];
         p = BIO_read(bio, temp, 49);
 
         if(p > 0)
@@ -607,6 +609,8 @@ int main(int argc, char *argv[]) {
     } else {
         SSL_conn_client(external_ip);
     }
+    char plaintext[1024];
+    char cipher[1024];
 
     while (1) {
         FD_ZERO(&fdset);
@@ -619,10 +623,11 @@ int main(int argc, char *argv[]) {
         }
 
         if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
-
+            memset(cipher,'\0',1024);
             l = read(tap_fd1, buf, sizeof(buf));
 
-            //encrypt(buf, sizeof(buf),key, sizeof(key))
+            encrypt(buf, l,key, sizeof(key),iv,cipher);
+            printf("%s\n",cipher);
 
             if (l < 0) {
                 my_err("error on read tun/tap");
@@ -633,7 +638,7 @@ int main(int argc, char *argv[]) {
 
             do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
 
-            l = sendto(s, buf, l, 0, (struct sockaddr *) &sout, fromlen);
+            l = sendto(s, cipher, l, 0, (struct sockaddr *) &sout, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -645,8 +650,10 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(s, &fdset)) { // data coming from network
 
+            memset(plaintext,'\0',1024);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
-
+            decrypt(buf, l,key, sizeof(key),iv,plaintext);
+            printf("%s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");
                 exit(1);
@@ -655,7 +662,7 @@ int main(int argc, char *argv[]) {
             do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
 
-            l = cwrite(tap_fd2, buf, l);
+            l = cwrite(tap_fd2, plaintext, l);
 
             if (l < 0) {
                 my_err("error on writing to tun/tap interface");

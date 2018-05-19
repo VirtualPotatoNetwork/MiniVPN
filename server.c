@@ -382,17 +382,17 @@ void SSL_conn_client(char* ext_ip)
         ERR_print_errors_fp(stderr);
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
-        return 0;
+        return;
     }
 
     /* Check the certificate */
 
     if(SSL_get_verify_result(ssl) != X509_V_OK)
     {
-        fprintf(stderr, "Certificate verification error: %i\n", SSL_get_verify_result(ssl));
+        fprintf(stderr, "Certificate verification error: %li\n", SSL_get_verify_result(ssl));
         BIO_free_all(bio);
         SSL_CTX_free(ctx);
-        return 0;
+        return;
     }
 
     /* Send the request */
@@ -418,7 +418,6 @@ BIO_write(bio, request, strlen(request));*/
 
     BIO_free_all(bio);
     SSL_CTX_free(ctx);
-    return 0;
 }
 
 /**************************************************************************
@@ -461,7 +460,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in udp_client;
     char external_ip[16] = "";
 
-    int external_ip_set = 0;
+    int external_ip_set = 0, is_server =0;
 
     char internal_ip[16] = "";
 
@@ -472,7 +471,7 @@ int main(int argc, char *argv[]) {
     progname = argv[0];
 
     /* Check command line options */
-    while ((option = getopt(argc, argv, "i:n:g:e:p:uahd")) > 0) {
+    while ((option = getopt(argc, argv, "i:n:sc:g:e:p:uahd")) > 0) {
         switch (option) {
             case 'e': // external gateway ip
                 strncpy(external_ip, optarg, 15);
@@ -483,6 +482,12 @@ int main(int argc, char *argv[]) {
                 break;
             case 'd':
                 debug = 1;
+                break;
+            case 's':
+                is_server = 1;
+                break;
+            case 'c':
+                is_server = 0;
                 break;
             case 'h':
                 usage();
@@ -511,11 +516,6 @@ int main(int argc, char *argv[]) {
 
     argv += optind;
     argc -= optind;
-
-    if (argc > 0) {
-        my_err("Too many options!\n");
-        usage();
-    }
 
     if (*if_name == '\0') {
         my_err("Must specify interface name!\n");
@@ -571,7 +571,7 @@ int main(int argc, char *argv[]) {
 
 
     if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
-        my_err("error on bind");
+        my_err("error on bind\n");
         exit(1);
     }
 
@@ -586,6 +586,12 @@ int main(int argc, char *argv[]) {
 //    }
 //
 //    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+
+    if (is_server) {
+        SSL_conn_server();
+    } else {
+        SSL_conn_client(external_ip);
+    }
 
     while (1) {
         FD_ZERO(&fdset);

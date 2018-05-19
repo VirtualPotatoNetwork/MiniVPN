@@ -20,11 +20,11 @@ tunserver:
 	sudo ifconfig tun0 up
 	sudo ip addr add 10.0.5.1/24 dev tun1
 	sudo ifconfig tun1 up
+	sudo route add -net $(subnet) gw 10.0.4.1 netmask 255.255.255.0 dev tun0
+	sudo sysctl net.ipv4.ip_forward=1
 
-tun0client:
-	sudo ip addr add 10.0.5.1/24 dev tun0
-	sudo ifconfig tun0 up
-	sudo route add -net 10.0.4.0 netmask 255.255.255.0 dev tun0
+client:
+	sudo route add -net $(subnet) gw $(gateway) netmask 255.255.255.0 dev $(interface)
 
 clean:
 	rm -f serverWorker clientWorker simpletun

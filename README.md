@@ -1,5 +1,10 @@
 # Gateway-to-Gateway Virtual Private Network
-This project is a simple
+
+Simple gateway-to-gateway VPN built upon SSL.
+
+[Virtual Private Network (VPN) Lab](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/) was our guideline.
+
+This is the project of METU CENG489-Introduction to Computer Security class.
 
 ## How to run
 To test this VPN properly, you need two different computers with a Virtual Machine Application ([VirtualBox](https://www.virtualbox.org/) is recommended).
@@ -87,14 +92,28 @@ Example:
 
 All default routing and TUN interface configurations are handled with the make commands.
 
-In gateway virtual machines, in the folder our `makefile` resides:
+In the first gateway virtual machine:
 
 ```bash
 make all
-make server ip=ComputerIP
+make servergateway ip=computerIP2
+
+# in another terminal
 make tunserver
 ```
-Note that `ComputerIP` is the IP of the computer the gateway virtual machine resides.
+Note that `computerIP2` is the IP of the computer2 where the other gateway virtual machine resides.
+
+In the second gateway virtual machine:
+
+```bash
+make all
+make clientgateway ip=computerIP1
+
+# in another terminal
+make tunserver
+```
+Note that `computerIP1` is the IP of the computer1 where the other gateway virtual machine resides.
+
 
 Lastly, in order to be able to route packets from TUN interface to the host in private network you need to run the following commands in each gateway virtual machine:
 
@@ -103,9 +122,39 @@ sudo su
 echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
 echo 0 > /proc/sys/net/ipv4/conf/tun1/rp_filter
 ```
-In host virtual machines:
+
+In host virtual machine of the computer1 (where the server gateway resides):
 
 ```bash
-# TODO
+sudo route add -net <subnet> gw <gateway> netmask 255.255.255.0 dev <interface>
 ```
 
+Where:
+
+```yaml
+<subnet> = 10.10.9.0
+<gateway> = 10.10.10.2
+<interface> = enp0s3 #this is the internal interface, its name might change
+```
+
+In host virtual machine of the computer2 (where the client gateway resides):
+
+```bash
+sudo route add -net <subnet> gw <gateway> netmask 255.255.255.0 dev <interface>
+```
+
+Where:
+
+```yaml
+<subnet> = 10.10.10.0
+<gateway> = 10.10.9.2
+<interface> = enp0s3 #this is the internal interface, its name might change
+```
+
+Now, you can finally ping the other host from one host:
+
+```bash
+ping 10.10.9.15 #IP of the other host
+```
+
+---

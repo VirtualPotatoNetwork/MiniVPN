@@ -9,11 +9,11 @@ serverSimpletun:
 clientSimpletun:
 	sudo ./simpletun -i tun0 -c $(ip) -d
 
-server:
-	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -s -d
+servergateway:
+	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -d
 
-client:
-	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -c  -d
+clientgateway:
+	sudo ./clientWorker -i tun0 -n tun1 -c $(ip) -d
 
 tunserver:
 	sudo ip addr add 10.0.4.1/24 dev tun0
@@ -23,7 +23,7 @@ tunserver:
 	sudo route add -net $(subnet) gw 10.0.4.1 netmask 255.255.255.0 dev tun0
 	sudo sysctl net.ipv4.ip_forward=1
 
-client:
+hostroute:
 	sudo route add -net $(subnet) gw $(gateway) netmask 255.255.255.0 dev $(interface)
 
 clean:

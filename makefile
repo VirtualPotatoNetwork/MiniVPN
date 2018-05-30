@@ -23,8 +23,8 @@ tunserver:
 	sudo route add -net $(subnet) gw 10.0.4.1 netmask 255.255.255.0 dev tun0
 	sudo sysctl net.ipv4.ip_forward=1
 	sudo su
-    echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
-    echo 0 > /proc/sys/net/ipv4/conf/tun1/rp_filter
+	echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+	echo 0 > /proc/sys/net/ipv4/conf/tun1/rp_filter
 
 hostroute:
 	sudo route add -net $(subnet) gw $(gateway) netmask 255.255.255.0 dev $(interface)

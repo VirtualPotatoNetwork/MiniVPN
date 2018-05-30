@@ -6,6 +6,14 @@ Simple gateway-to-gateway VPN built upon SSL.
 
 This is the project of METU CENG489-Introduction to Computer Security class.
 
+## Code sources and tutorials we used
+
+* [Davide Brini's TUN/TAP tutorial article](http://backreference.org/2010/03/26/tuntap-interface-tutorial/) and [the modified version of his simpletun program](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/files/simpletun.c) provided by Syracuse University
+
+* OpenSSL wiki pages: [SSL/TLS Client](https://wiki.openssl.org/index.php/SSL/TLS_Client) , [EVP Symmetric Encryption and Decryption](https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption), [Simple TLS Server](https://wiki.openssl.org/index.php/Simple_TLS_Server) 
+
+* [UDP made simple](https://www.abc.se/~m6695/udp.html)
+
 ## How to run
 To test this VPN properly, you need two different computers with a Virtual Machine Application ([VirtualBox](https://www.virtualbox.org/) is recommended).
 

@@ -729,7 +729,7 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
-            decrypt(buf, l-32,key,iv,plaintext);
+            int decrypt_len=decrypt(buf, l-32,key,iv,plaintext);
 
 //            printf("plain len = %d\n",(int)strlen(plaintext));
 //            printf("plain= %s\n",plaintext);
@@ -738,10 +738,10 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
 
-            do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+           //do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
 
 
-            l = cwrite(tap_fd2, plaintext, l-32);
+            l = cwrite(tap_fd2, plaintext, decrypt_len);
 
 //            packet received from 10.70.196.177:55555Writing data: Invalid argument
 //            makefile:13: recipe for target 'server' failed

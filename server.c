@@ -18,6 +18,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include "message.h"
+#include "encr_dec.h"
 
 /* buffer for reading from tun/tap interface, must be >= 1500 */
 #define BUFSIZE 2000
@@ -30,9 +31,18 @@
 
 int debug;
 char *progname;
+char key[33] = "01234567890123456789012345678901";
+char iv[17] = "*123456789012345";
 
-SSL_CTX *sslctx;
-SSL *cSSL;
+/**************************************************************************
+ *SSL_create_conn: creates SSL connection and waits for a client to conn. *
+ *                                                                        *
+ **************************************************************************/
+void SSL_create_conn()
+{
+
+}
+
 
 /**************************************************************************
  * tun_alloc: allocates or reconnects to a tun/tap device. The caller     *
@@ -66,14 +76,6 @@ int tun_alloc(char *dev, int flags) {
         perror("enabling TUNSETPERSIST");
         exit(1);
     }
-
-/*
-  // DELETE TUN0 interface
-  if(ioctl(tap_fd, TUNSETPERSIST, 0) < 0){
-      perror("disabling TUNSETPERSIST");
-      exit(1);
-  }
-*/
 
 
     strcpy(dev, ifr.ifr_name);
@@ -156,20 +158,263 @@ void my_err(char *msg, ...) {
     va_end(argp);
 }
 
-void InitializeSSL() {
+void init_openssl()
+{
     SSL_load_error_strings();
-    SSL_library_init();
-    OpenSSL_add_all_algorithms();
+    OpenSSL_add_ssl_algorithms();
 }
 
-void DestroySSL() {
-    ERR_free_strings();
+void cleanup_openssl()
+{
     EVP_cleanup();
 }
 
-void ShutdownSSL() {
-    SSL_shutdown(cSSL);
-    SSL_free(cSSL);
+int create_socket(int port)
+{
+    int s;
+    struct sockaddr_in addr;
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) {
+        perror("Unable to create socket");
+        exit(EXIT_FAILURE);
+    }
+
+    if (bind(s, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("Unable to bind");
+        exit(EXIT_FAILURE);
+    }
+
+    if (listen(s, 1) < 0) {
+        perror("Unable to listen");
+        exit(EXIT_FAILURE);
+    }
+
+    return s;
+}
+
+SSL_CTX *create_context()
+{
+    const SSL_METHOD *method;
+    SSL_CTX *ctx;
+
+    method = SSLv23_server_method();
+
+    ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        perror("Unable to create SSL context");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    return ctx;
+}
+
+void configure_context(SSL_CTX *ctx)
+{
+    SSL_CTX_set_ecdh_auto(ctx, 1);
+
+    /* Set the key and cert */
+    if (SSL_CTX_use_certificate_file(ctx, "server.pem", SSL_FILETYPE_PEM) <= 0) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    if (SSL_CTX_use_PrivateKey_file(ctx, "server.key", SSL_FILETYPE_PEM) <= 0 ) {
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void SSL_conn_server()
+{
+    int TCP_sock;
+    SSL_CTX *ctx;
+
+    init_openssl();
+    ctx = create_context();
+
+    configure_context(ctx);
+
+    //*******PORT NUMBER*********
+
+    TCP_sock = create_socket(PORT);
+
+    /* Handle connections */
+    while(1) {
+
+        struct sockaddr_in addr;
+        uint len = sizeof(addr);
+        SSL *ssl;
+        int is_connected=0;
+
+        const char reply[] = "test\n";
+
+        int client = accept(TCP_sock, (struct sockaddr*)&addr, &len);
+
+        if (client < 0) {
+            perror("Unable to accept");
+            exit(EXIT_FAILURE);
+        }
+
+        ssl = SSL_new(ctx);
+        SSL_set_fd(ssl, client);
+
+        if (SSL_accept(ssl) <= 0)
+        {
+            ERR_print_errors_fp(stderr);
+        }
+        else
+        {
+            char mes[49];
+            strcpy(mes,key);
+            strcat(mes,iv);
+            mes[48]='\0';
+            printf("%s\n",mes);
+            while (1)
+            {
+                char reply[49];
+                SSL_write(ssl, mes, strlen(mes));
+
+                SSL_read(ssl, reply, 48);
+                reply[48]='\0';
+
+                if(strcmp(reply,mes) == 0)
+                {
+                    is_connected=1;
+                    break;
+                }
+            }
+        }
+
+        SSL_free(ssl);
+        close(client);
+
+        if(is_connected == 1)
+        {
+            break;
+        }
+    }
+
+    close(TCP_sock);
+    SSL_CTX_free(ctx);
+    cleanup_openssl();
+    printf("Key exchange is done\n");
+}
+
+void SSL_conn_client(char* ext_ip)
+{
+    char ip_port[50];
+    char *port = ":55555";
+    BIO * bio;
+    SSL * ssl;
+    SSL_CTX * ctx;
+    SSL_library_init ();
+    int p;
+
+    char key[33];
+
+    strcpy(ip_port,ext_ip);
+    strcat(ip_port,port);
+    printf("%s\n",ip_port);
+
+
+    /* Set up the library */
+
+    ERR_load_BIO_strings();
+    SSL_load_error_strings();
+    OpenSSL_add_all_algorithms();
+
+    /* Set up the SSL context */
+
+    ctx = SSL_CTX_new(SSLv23_client_method());
+
+    /* Load the trust store */
+    const long flags = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_COMPRESSION;
+    SSL_CTX_set_options(ctx, flags);
+
+    if(ctx==NULL)
+    {
+        printf("null\n");
+    }
+
+    SSL_CTX_load_verify_locations(ctx, "server.crt", NULL);
+
+    BIO* bo = BIO_new( BIO_s_mem() );
+    //BIO_write( bo, mKey,strlen(mKey));
+
+    EVP_PKEY* pkey = 0;
+    PEM_read_bio_PrivateKey( bo, &pkey, 0, 0 );
+
+    BIO_free(bo);
+
+    /* Setup the connection */
+
+    bio = BIO_new_ssl_connect(ctx);
+
+    /* Set the SSL_MODE_AUTO_RETRY flag */
+
+    BIO_get_ssl(bio, & ssl);
+    SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+
+    /* Create and setup the connection */
+
+    BIO_set_conn_hostname(bio, ip_port);
+
+    if(BIO_do_connect(bio) <= 0)
+    {
+        fprintf(stderr, "Error attempting to connect\n");
+        ERR_print_errors_fp(stderr);
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return;
+    }
+
+    /* Check the certificate */
+
+    if(SSL_get_verify_result(ssl) != X509_V_OK)
+    {
+        fprintf(stderr, "Certificate verification error: %li\n", SSL_get_verify_result(ssl));
+        BIO_free_all(bio);
+        SSL_CTX_free(ctx);
+        return;
+    }
+
+    for(;;)
+    {
+        char temp[49];
+        p = BIO_read(bio, temp, 49);
+
+        if(p > 0)
+        {
+            BIO_write(bio, temp, p);
+            strncpy(key,temp,32);
+            key[32] = '\0';
+            printf("%s\n", key);
+            strncpy(iv,temp+32,16);
+            iv[16]='\0';
+            printf("%s\n", iv);
+            break;
+        }
+    }
+
+    /* Close the connection and free the context */
+
+    BIO_free_all(bio);
+    SSL_CTX_free(ctx);
+    printf("****client is out****\n");
+}
+
+void copystr(char* dest,char* src,int dest_len,int src_len)
+{
+    for (int i=dest_len, j=0; j<src_len; i++, j++)
+    {
+        dest[i]=src[j];
+    }
 }
 
 /**************************************************************************
@@ -212,7 +457,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in udp_client;
     char external_ip[16] = "";
 
-    int external_ip_set = 0;
+    int external_ip_set = 0, is_server =0;
 
     char internal_ip[16] = "";
 
@@ -223,7 +468,7 @@ int main(int argc, char *argv[]) {
     progname = argv[0];
 
     /* Check command line options */
-    while ((option = getopt(argc, argv, "i:n:g:e:p:uahd")) > 0) {
+    while ((option = getopt(argc, argv, "i:n:sc:g:e:p:uahd")) > 0) {
         switch (option) {
             case 'e': // external gateway ip
                 strncpy(external_ip, optarg, 15);
@@ -234,6 +479,12 @@ int main(int argc, char *argv[]) {
                 break;
             case 'd':
                 debug = 1;
+                break;
+            case 's':
+                is_server = 1;
+                break;
+            case 'c':
+                is_server = 0;
                 break;
             case 'h':
                 usage();
@@ -262,11 +513,6 @@ int main(int argc, char *argv[]) {
 
     argv += optind;
     argc -= optind;
-
-    if (argc > 0) {
-        my_err("Too many options!\n");
-        usage();
-    }
 
     if (*if_name == '\0') {
         my_err("Must specify interface name!\n");
@@ -304,39 +550,21 @@ int main(int argc, char *argv[]) {
     inet_aton(external_ip, &sout.sin_addr);
 
 
-//    external_socket = socket(AF_INET, SOCK_STREAM, 0);
-//    sout.sin_family = AF_INET;
-//    sout.sin_addr.s_addr = htonl(remote_ip);
-//    sout.sin_port = htons(PORT);
-//
-//    if (connect(external_socket, (struct sockaddr *)&sout, sizeof(sout)) < 0) {
-//
-//    }
-
-//    if (external_ip_set == 0) {
-//        // bind and listen
-//    } else {
-//        // connect to
-//    }
-
-
+    if (is_server) {
+        SSL_conn_server();
+    } else {
+        SSL_conn_client(external_ip);
+    }
 
     if (bind(s, (struct sockaddr *) &sin, sizeof(sin)) < 0) {
-        my_err("error on bind");
+        my_err("error on bind\n");
         exit(1);
     }
 
-    fromlen = sizeof(from);
+    fromlen = sizeof(sout);
 
-
-//    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
-//
-//    if (l < 0) {
-//        my_err("error on initialization");
-//        exit(1);
-//    }
-//
-//    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+    char plaintext[1024];
+    char cipher[1024];
 
     while (1) {
         FD_ZERO(&fdset);
@@ -350,18 +578,22 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
 
+            memset(cipher,'\0',1024);
+            memset(buf,'\0',1024);
+            int encryption_len;
             l = read(tap_fd1, buf, sizeof(buf));
 
-            if (l < 0) {
-                my_err("error on read tun/tap");
-                exit(1);
-            }
+            encryption_len = encrypt(buf,l,key,iv,cipher);
 
-            tap2net++;
+            char hmac_out[32];
+            int hmac_len=32;
+            memset(hmac_out,'\0',32);
+            myhmac_sha256(key,strlen(key),cipher,encryption_len,hmac_out,&hmac_len);
 
-            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
+            copystr(cipher, hmac_out, encryption_len, 32);
 
-            l = sendto(s, buf, l, 0, (struct sockaddr *) &sout, fromlen);
+            l = sendto(s, cipher, encryption_len + 32, 0, (struct sockaddr *) &sout, fromlen);
+
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -373,17 +605,42 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(s, &fdset)) { // data coming from network
 
+            memset(plaintext,'\0',1024);
+            memset(buf,'\0',BUFSIZE);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
+
+            do_debug("packet received from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+
+            char hmac_out[32];
+            memset(hmac_out,'\0',32);
+            strncpy(hmac_out,buf+l-32,32);
+
+            buf[l-32]='\0';
+
+            char temp_out[32];
+            int temp_out_len=32;
+            memset(temp_out,'\0',32);
+            myhmac_sha256(key,strlen(key),buf,l-32,temp_out,&temp_out_len);
+
+            if(strncmp(hmac_out,temp_out,32) == 0)
+            {
+                printf("Success: Packet Verified! HMAC is equal.\n");
+            }
+            else
+            {
+                printf("Error: Damaged Packet! HMAC is not equal.\n");
+                continue;
+            }
+
+            int decrypt_len=decrypt(buf, l-32,key,iv,plaintext);
 
             if (l < 0) {
                 my_err("error on receving from the network");
                 exit(1);
             }
 
-            do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
+            l = cwrite(tap_fd2, plaintext, decrypt_len);
 
-
-            l = cwrite(tap_fd2, buf, l);
 
             if (l < 0) {
                 my_err("error on writing to tun/tap interface");

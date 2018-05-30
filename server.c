@@ -77,14 +77,6 @@ int tun_alloc(char *dev, int flags) {
         exit(1);
     }
 
-/*
-  // DELETE TUN0 interface
-  if(ioctl(tap_fd, TUNSETPERSIST, 0) < 0){
-      perror("disabling TUNSETPERSIST");
-      exit(1);
-  }
-*/
-
 
     strcpy(dev, ifr.ifr_name);
 
@@ -268,7 +260,7 @@ void SSL_conn_server()
             perror("Unable to accept");
             exit(EXIT_FAILURE);
         }
-//        printf("connected\n");
+
         ssl = SSL_new(ctx);
         SSL_set_fd(ssl, client);
 
@@ -290,9 +282,7 @@ void SSL_conn_server()
 
                 SSL_read(ssl, reply, 48);
                 reply[48]='\0';
-//                printf("%s\n",mes);
-//                printf("%d\n",strlen(mes));
-//                printf("%d\n",strlen(key));
+
                 if(strcmp(reply,mes) == 0)
                 {
                     is_connected=1;
@@ -362,17 +352,6 @@ void SSL_conn_client(char* ext_ip)
 
     BIO_free(bo);
 
-
-    //RSA* rsa = EVP_PKEY_get1_RSA( pkey );
-
-    /*if(! )
-    {
-        printf("Error loading trust store\n");
-        ERR_print_errors_fp(stderr);
-        SSL_CTX_free(ctx);
-        return 0;
-    }*/
-
     /* Setup the connection */
 
     bio = BIO_new_ssl_connect(ctx);
@@ -404,13 +383,6 @@ void SSL_conn_client(char* ext_ip)
         SSL_CTX_free(ctx);
         return;
     }
-
-    /* Send the request */
-/*while(1){
-    BIO_write(bio, request, strlen(request));
-	printf("%s\n",request);}
-BIO_write(bio, request, strlen(request));*/
-    /* Read in the response */
 
     for(;;)
     {
@@ -578,30 +550,6 @@ int main(int argc, char *argv[]) {
     inet_aton(external_ip, &sout.sin_addr);
 
 
-//    external_socket = socket(AF_INET, SOCK_STREAM, 0);
-//    sout.sin_family = AF_INET;
-//    sout.sin_addr.s_addr = htonl(remote_ip);
-//    sout.sin_port = htons(PORT);
-//
-//    if (connect(external_socket, (struct sockaddr *)&sout, sizeof(sout)) < 0) {
-//
-//    }
-
-//    if (external_ip_set == 0) {
-//        // bind and listen
-//    } else {
-//        // connect to
-//    }
-
-//    l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
-//
-//    if (l < 0) {
-//        my_err("error on initialization");
-//        exit(1);
-//    }
-//
-//    do_debug("%s packet received from %s:%d", buf, inet_ntoa(from.sin_addr), ntohs(from.sin_port));
-
     if (is_server) {
         SSL_conn_server();
     } else {
@@ -640,30 +588,12 @@ int main(int argc, char *argv[]) {
             char hmac_out[32];
             int hmac_len=32;
             memset(hmac_out,'\0',32);
-            myhmac_sha256(key,strlen(key),cipher,strlen(cipher),hmac_out,&hmac_len);
+            myhmac_sha256(key,strlen(key),cipher,encryption_len,hmac_out,&hmac_len);
 
             copystr(cipher, hmac_out, encryption_len, 32);
 
             l = sendto(s, cipher, encryption_len + 32, 0, (struct sockaddr *) &sout, fromlen);
-//
-//            encryption_len = encrypt(buf, l,key,iv,cipher);
-//            char hmac_out[32];
-//            int hmac_len=32;
-//            memset(hmac_out,'\0',32);
-//            myhmac_sha256(key,strlen(key),cipher,encryption_len,hmac_out,&hmac_len);
-//            copystr(cipher,hmac_out,encryption_len,32);
-//            printf("%s\n",cipher);
-//
-//            if (l < 0) {
-//                my_err("error on read tun/tap");
-//                exit(1);
-//            }
-//
-//            tap2net++;
-//
-//            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
-//
-//            l = sendto(s, cipher, l, 0, (struct sockaddr *) &sout, fromlen);
+
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -678,76 +608,38 @@ int main(int argc, char *argv[]) {
             memset(plaintext,'\0',1024);
             memset(buf,'\0',BUFSIZE);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
-            printf("***L= %d\n",l);
-//            printf("***buf= %d***\n",(int)strlen(buf));
-//            for(int i=0;i<48;i++)
-//            {
-//                printf("%d ",buf[i]);
-//            }
-//            printf("\n");
-//            fflush(stdout);
+
             do_debug("packet received from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
-//            printf("l= %d\n",l);
+
             char hmac_out[32];
             memset(hmac_out,'\0',32);
             strncpy(hmac_out,buf+l-32,32);
-//            for(int i=0;i<(int)strlen(hmac_out);i++)
-//            {
-//                printf("%d ",hmac_out[i]);
-//            }
-//            printf("\n");
-//            printf("buf= %s\n",buf);
-//            printf("hmac_len= %s\n",(int)strlen(hmac_out));
-//            printf("buf_len= %d\n",(int)strlen(buf));
-//            fflush(stdout);
+
             buf[l-32]='\0';
-//            printf("buf= %s\n",buf);
-//            for(int i=0;i<l-32;i++)
-//            {
-//                printf("%d ",buf[i]);
-//            }
-//            printf("\n");
-//
-//            fflush(stdout);
+
             char temp_out[32];
             int temp_out_len=32;
             memset(temp_out,'\0',32);
             myhmac_sha256(key,strlen(key),buf,l-32,temp_out,&temp_out_len);
 
-//            for(int i=0;i<(int)strlen(temp_out);i++)
-//            {
-//                printf("%d ",temp_out[i]);
-//            }
-
             if(strncmp(hmac_out,temp_out,32) == 0)
             {
-                printf("saplaaaaa\n");
+                printf("Success: Packet Verified! HMAC is equal.\n");
             }
             else
             {
-                printf("not equal\n");
+                printf("Error: Damaged Packet! HMAC is not equal.\n");
                 continue;
             }
 
             int decrypt_len=decrypt(buf, l-32,key,iv,plaintext);
 
-//            printf("plain len = %d\n",(int)strlen(plaintext));
-//            printf("plain= %s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");
                 exit(1);
             }
 
-           //do_debug("packet received from %s:%d", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
-
-
             l = cwrite(tap_fd2, plaintext, decrypt_len);
-
-//            packet received from 10.70.196.177:55555Writing data: Invalid argument
-//            makefile:13: recipe for target 'server' failed
-//            make: *** [server] Error
-            //gercek paketlerle denemedik
-            //wrap olmadığından dolayı tapta patlıyor
 
 
             if (l < 0) {

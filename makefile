@@ -13,7 +13,7 @@ servergateway:
 	sudo ./serverWorker -i tun0 -n tun1 -e $(ip) -d
 
 clientgateway:
-	sudo ./clientWorker -i tun0 -n tun1 -c $(ip) -d
+	sudo ./serverWorker -i tun0 -n tun1 -c $(ip) -d
 
 tunserver:
 	sudo ip addr add 10.0.4.1/24 dev tun0
@@ -22,6 +22,9 @@ tunserver:
 	sudo ifconfig tun1 up
 	sudo route add -net $(subnet) gw 10.0.4.1 netmask 255.255.255.0 dev tun0
 	sudo sysctl net.ipv4.ip_forward=1
+	sudo su
+    echo 0 > /proc/sys/net/ipv4/conf/all/rp_filter
+    echo 0 > /proc/sys/net/ipv4/conf/tun1/rp_filter
 
 hostroute:
 	sudo route add -net $(subnet) gw $(gateway) netmask 255.255.255.0 dev $(interface)

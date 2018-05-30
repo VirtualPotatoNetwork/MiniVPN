@@ -622,12 +622,14 @@ int main(int argc, char *argv[]) {
 
         if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
             memset(cipher,'\0',1024);
+            memset(buf,'\0',1024);
+
             l = read(tap_fd1, buf, sizeof(buf));
 
             encrypt(buf, l,key,iv,cipher);
-            char hmac_out[33];
-            int hmac_len=33;
-            memset(hmac_out,'\0',33);
+            char hmac_out[32];
+            int hmac_len=32;
+            memset(hmac_out,'\0',32);
             myhmac_sha256(key,strlen(key),cipher,strlen(cipher),hmac_out,&hmac_len);
             strcat(cipher,hmac_out);
             printf("%s\n",cipher);
@@ -654,22 +656,49 @@ int main(int argc, char *argv[]) {
         if (FD_ISSET(s, &fdset)) { // data coming from network
 
             memset(plaintext,'\0',1024);
+            memset(buf,'\0',BUFSIZE);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
+//            printf("***buf= %d***\n",(int)strlen(buf));
+//            for(int i=0;i<48;i++)
+//            {
+//                printf("%d ",buf[i]);
+//            }
+//            printf("\n");
+//            fflush(stdout);
             do_debug("packet received from %s:%d\n", inet_ntoa(from.sin_addr), ntohs(from.sin_port));
-            printf("%d\n",l);
-            char hmac_out[33];
-            memset(hmac_out,'\0',33);
+//            printf("l= %d\n",l);
+            char hmac_out[32];
+            memset(hmac_out,'\0',32);
             strncpy(hmac_out,buf+l-32,32);
-            printf("%s\n",buf);
-            printf("%s\n",hmac_out);
-            printf("%d\n",strlen(buf));
+//            for(int i=0;i<(int)strlen(hmac_out);i++)
+//            {
+//                printf("%d ",hmac_out[i]);
+//            }
+//            printf("\n");
+//            printf("buf= %s\n",buf);
+//            printf("hmac_len= %s\n",(int)strlen(hmac_out));
+//            printf("buf_len= %d\n",(int)strlen(buf));
+//            fflush(stdout);
             buf[l-32]='\0';
-            char temp_out[33];
-            int temp_out_len=33;
-            memset(temp_out,'\0',33);
+//            printf("buf= %s\n",buf);
+//            for(int i=0;i<l-32;i++)
+//            {
+//                printf("%d ",buf[i]);
+//            }
+//            printf("\n");
+//
+//            fflush(stdout);
+            char temp_out[32];
+            int temp_out_len=32;
+            memset(temp_out,'\0',32);
             myhmac_sha256(key,strlen(key),buf,strlen(buf),temp_out,&temp_out_len);
 
-            if(strcmp(hmac_out,temp_out) == 0)
+//            for(int i=0;i<(int)strlen(temp_out);i++)
+//            {
+//                printf("%d ",temp_out[i]);
+//            }
+
+            if(strncmp(hmac_out,temp_out,32) == 0)
             {
                 printf("saplaaaaa\n");
             }
@@ -680,6 +709,8 @@ int main(int argc, char *argv[]) {
             }
 
             decrypt(buf, l-32,key,iv,plaintext);
+
+            printf("%d\n",(int)strlen(plaintext));
             printf("%s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");
@@ -690,6 +721,7 @@ int main(int argc, char *argv[]) {
 
 
             l = cwrite(tap_fd2, plaintext, l-32);
+            printf("%d\n",l);
 //            packet received from 10.70.196.177:55555Writing data: Invalid argument
 //            makefile:13: recipe for target 'server' failed
 //            make: *** [server] Error

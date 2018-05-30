@@ -4,11 +4,13 @@ Simple gateway-to-gateway VPN built upon SSL.
 
 [Virtual Private Network (VPN) Lab](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/) was our guideline.
 
-This is the project of METU CENG489-Introduction to Computer Security class.
+This is our METU CENG489 - Introduction to Computer Security 2018 Spring semester class term project.
+
+Team members are Göksel Şimşek, Kadir Berkay Aydemir, Egemen Sarıkaya and Canberk Morelli.
 
 ## Code sources and tutorials we used
 
-* [Davide Brini's TUN/TAP tutorial article](http://backreference.org/2010/03/26/tuntap-interface-tutorial/) and [the modified version of his simpletun program](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/files/simpletun.c) provided by Syracuse University
+* [Davide Brini's TUN/TAP tutorial article](http://backreference.org/2010/03/26/tuntap-interface-tutorial/) and [the modified version of his simpletun program](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/files/simpletun.c) provided by the [Syracuse University VPN lab](http://www.cis.syr.edu/~wedu/seed/Labs/VPN/)
 
 * OpenSSL wiki pages: [SSL/TLS Client](https://wiki.openssl.org/index.php/SSL/TLS_Client) , [EVP Symmetric Encryption and Decryption](https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption), [Simple TLS Server](https://wiki.openssl.org/index.php/Simple_TLS_Server) 
 

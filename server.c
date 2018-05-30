@@ -437,6 +437,14 @@ BIO_write(bio, request, strlen(request));*/
     printf("****client is out****\n");
 }
 
+void copystr(char* dest,char* src,int dest_len,int src_len)
+{
+    for (int i=dest_len, j=0; j<src_len; i++, j++)
+    {
+        dest[i]=src[j];
+    }
+}
+
 /**************************************************************************
  * usage: prints usage and exits.                                         *
  **************************************************************************/
@@ -621,29 +629,41 @@ int main(int argc, char *argv[]) {
         }
 
         if (FD_ISSET(tap_fd1, &fdset)) { // data coming from tun/tap
+
             memset(cipher,'\0',1024);
             memset(buf,'\0',1024);
-
+            int encryption_len;
             l = read(tap_fd1, buf, sizeof(buf));
 
-            encrypt(buf, l,key,iv,cipher);
+            encryption_len = encrypt(test_str, (int)strlen(test_str),key,iv,cipher);
+
             char hmac_out[32];
             int hmac_len=32;
             memset(hmac_out,'\0',32);
             myhmac_sha256(key,strlen(key),cipher,strlen(cipher),hmac_out,&hmac_len);
-            strcat(cipher,hmac_out);
-            printf("%s\n",cipher);
 
-            if (l < 0) {
-                my_err("error on read tun/tap");
-                exit(1);
-            }
+            copystr(cipher, hmac_out, encryption_len, 32);
 
-            tap2net++;
-
-            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
-
-            l = sendto(s, cipher, l, 0, (struct sockaddr *) &sout, fromlen);
+            l = sendto(s, cipher, encryption_len + 32, 0, (struct sockaddr *) &sout, fromlen);
+//
+//            encryption_len = encrypt(buf, l,key,iv,cipher);
+//            char hmac_out[32];
+//            int hmac_len=32;
+//            memset(hmac_out,'\0',32);
+//            myhmac_sha256(key,strlen(key),cipher,encryption_len,hmac_out,&hmac_len);
+//            copystr(cipher,hmac_out,encryption_len,32);
+//            printf("%s\n",cipher);
+//
+//            if (l < 0) {
+//                my_err("error on read tun/tap");
+//                exit(1);
+//            }
+//
+//            tap2net++;
+//
+//            do_debug("TAP2NET %lu: Read %d bytes from the tap interface\n", tap2net, l);
+//
+//            l = sendto(s, cipher, l, 0, (struct sockaddr *) &sout, fromlen);
             if (l < 0) {
                 my_err("error on sending to the network");
                 exit(1);
@@ -658,6 +678,7 @@ int main(int argc, char *argv[]) {
             memset(plaintext,'\0',1024);
             memset(buf,'\0',BUFSIZE);
             l = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *) &from, &fromlen);
+            printf("***L= %d\n",l);
 //            printf("***buf= %d***\n",(int)strlen(buf));
 //            for(int i=0;i<48;i++)
 //            {
@@ -691,7 +712,7 @@ int main(int argc, char *argv[]) {
             char temp_out[32];
             int temp_out_len=32;
             memset(temp_out,'\0',32);
-            myhmac_sha256(key,strlen(key),buf,strlen(buf),temp_out,&temp_out_len);
+            myhmac_sha256(key,strlen(key),buf,l-32,temp_out,&temp_out_len);
 
 //            for(int i=0;i<(int)strlen(temp_out);i++)
 //            {
@@ -710,8 +731,8 @@ int main(int argc, char *argv[]) {
 
             decrypt(buf, l-32,key,iv,plaintext);
 
-            printf("%d\n",(int)strlen(plaintext));
-            printf("%s\n",plaintext);
+//            printf("plain len = %d\n",(int)strlen(plaintext));
+//            printf("plain= %s\n",plaintext);
             if (l < 0) {
                 my_err("error on receving from the network");
                 exit(1);
@@ -721,7 +742,7 @@ int main(int argc, char *argv[]) {
 
 
             l = cwrite(tap_fd2, plaintext, l-32);
-            printf("%d\n",l);
+
 //            packet received from 10.70.196.177:55555Writing data: Invalid argument
 //            makefile:13: recipe for target 'server' failed
 //            make: *** [server] Error

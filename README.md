@@ -158,3 +158,9 @@ ping 10.10.9.15 #IP of the other host
 ```
 
 ---
+
+**Note:** Run this command in each gateway virtual machine if it is not working:
+
+```bash
+sudo apt-get libssl-dev
+```

@@ -635,7 +635,7 @@ int main(int argc, char *argv[]) {
             int encryption_len;
             l = read(tap_fd1, buf, sizeof(buf));
 
-            encryption_len = encrypt(test_str, (int)strlen(test_str),key,iv,cipher);
+            encryption_len = encrypt(buf,l,key,iv,cipher);
 
             char hmac_out[32];
             int hmac_len=32;
